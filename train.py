@@ -71,9 +71,12 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def get_ignored_params(model):
+def get_ignored_params(model, arch):
     # Generator function that yields ignored params.
-    b = []
+    if arch == 'metaformer':
+        b = []
+    else:
+        b = [model.conv1, model.bn1, model.fc_finetune]
     for i in range(len(b)):
         for module_name, module in b[i].named_modules():
             if 'bn' in module_name:
@@ -81,9 +84,12 @@ def get_ignored_params(model):
             for name, param in module.named_parameters():
                 yield param
 
-def get_non_ignored_params(model):
+def get_non_ignored_params(model, arch):
     # Generator function that yields params that will be optimized.
-    b = []
+    if arch == 'metaformer':
+        b = []
+    else:
+        b = [model.layer1, model.layer2, model.layer3, model.layer4]
     for i in range(len(b)):
         for module_name, module in b[i].named_modules():
             if 'bn' in module_name:
@@ -91,9 +97,12 @@ def get_non_ignored_params(model):
             for name, param in module.named_parameters():
                 yield param
 
-def get_fc_params(model):
+def get_fc_params(model, arch):
     # Generator function that yields fc layer params.
-    b = [model.head.fc_yaw_gaze, model.head.fc_pitch_gaze]
+    if arch == 'metaformer':
+        b = [model.head.fc_yaw_gaze, model.head.fc_pitch_gaze]
+    else:
+        b = [model.fc_yaw_gaze, model.fc_pitch_gaze]
     for i in range(len(b)):
         for module_name, module in b[i].named_modules():
             for name, param in module.named_parameters():
@@ -194,9 +203,9 @@ if __name__ == '__main__':
 
             # Optimizer gaze
             optimizer_gaze = torch.optim.Adam([
-                {'params': get_ignored_params(model), 'lr': 0},
-                {'params': get_non_ignored_params(model), 'lr': args.lr},
-                {'params': get_fc_params(model), 'lr': args.lr}
+                {'params': get_ignored_params(model, args.arch), 'lr': 0},
+                {'params': get_non_ignored_params(model, args.arch), 'lr': args.lr},
+                {'params': get_fc_params(model, args.arch), 'lr': args.lr}
             ], args.lr)
 
 
