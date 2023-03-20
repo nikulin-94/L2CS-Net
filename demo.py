@@ -68,7 +68,7 @@ if __name__ == '__main__':
     
 
     transformations = transforms.Compose([
-        transforms.Resize(448),
+        transforms.Resize((448,448)),
         transforms.ToTensor(),
         transforms.Normalize(
             mean=[0.485, 0.456, 0.406],
@@ -76,7 +76,7 @@ if __name__ == '__main__':
         )
     ])
     
-    model=getArch(arch, 90)
+    model=getArch(arch, 28)
     print('Loading snapshot.')
     saved_state_dict = torch.load(snapshot_path)
     model.load_state_dict(saved_state_dict)
@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
     softmax = nn.Softmax(dim=1)
     detector = RetinaFace(gpu_id=0)
-    idx_tensor = [idx for idx in range(90)]
+    idx_tensor = [idx for idx in range(28)]
     idx_tensor = torch.FloatTensor(idx_tensor).cuda(gpu)
     x=0
   

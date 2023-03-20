@@ -22,13 +22,6 @@ model_s = metaformer_baselines.caformer_s36(pretrained=True)
 def parse_args():
     """Parse input arguments."""
     parser = argparse.ArgumentParser(description='Gaze estimation using L2CSNet.')
-    # Gaze360
-    parser.add_argument(
-        '--gaze360image_dir', dest='gaze360image_dir', help='Directory path for gaze images.',
-        default='datasets/Gaze360/Image', type=str)
-    parser.add_argument(
-        '--gaze360label_dir', dest='gaze360label_dir', help='Directory path for gaze labels.',
-        default='datasets/Gaze360/Label/train.label', type=str)
     # mpiigaze
     parser.add_argument(
         '--gazeMpiimage_dir', dest='gazeMpiimage_dir', help='Directory path for gaze images.',
@@ -41,7 +34,7 @@ def parse_args():
     # ----------------------------------------------------------------------------------------------------------------------
     parser.add_argument(
         '--dataset', dest='dataset', help='mpiigaze, rtgene, gaze360, ethgaze',
-        default= "gaze360", type=str)
+        default= "mpiigaze", type=str)
     parser.add_argument(
         '--output', dest='output', help='Path of output models.',
         default='output/snapshots/', type=str)
@@ -58,10 +51,13 @@ def parse_args():
         '--batch_size', dest='batch_size', help='Batch size.',
         default=1, type=int)
     parser.add_argument(
-        '--arch', dest='arch', help='Network architecture, can be: ResNet18, ResNet34, [ResNet50], ''ResNet101, ResNet152, Squeezenet_1_0, Squeezenet_1_1, MobileNetV2',
+        '--arch', dest='arch', help='Network architecture, can be: ResNet50, metaformer',
         default='ResNet50', type=str)
     parser.add_argument(
         '--alpha', dest='alpha', help='Regression loss coefficient.',
+        default=1, type=float)
+    parser.add_argument(
+        '--bins', dest='bins', help='Regression loss coefficient.',
         default=1, type=float)
     parser.add_argument(
         '--lr', dest='lr', help='Base learning rate.',
@@ -117,32 +113,19 @@ def load_filtered_state_dict(model, snapshot):
 
 
 def getArch_weights(arch, bins):
-    if arch == 'ResNet18':
-        model = L2CS(torchvision.models.resnet.BasicBlock, [2, 2, 2, 2], bins)
-        pre_url = 'https://download.pytorch.org/models/resnet18-5c106cde.pth'
-    elif arch == 'ResNet34':
-        model = L2CS(torchvision.models.resnet.BasicBlock, [3, 4, 6, 3], bins)
-        pre_url = 'https://download.pytorch.org/models/resnet34-333f7ec4.pth'
-    elif arch == 'ResNet101':
-        model = L2CS(torchvision.models.resnet.Bottleneck, [3, 4, 23, 3], bins)
-        pre_url = 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth'
-    elif arch == 'ResNet152':
-        model = L2CS(torchvision.models.resnet.Bottleneck,[3, 8, 36, 3], bins)
-        pre_url = 'https://download.pytorch.org/models/resnet152-b121ed2d.pth'
-    elif arch == 'metaformer':
-        model = metaformer_baselines.caformer_s36(pretrained=False)
-        print(model)
-        # model = L2CS2(model, bins)
-        # print(model)
+
+    if arch == 'metaformer':
+        model = metaformer_baselines.caformer_s36()
+        pre_url = False
+
     else:
         if arch != 'ResNet50':
             print('Invalid value for architecture is passed! '
                   'The default value of ResNet50 will be used instead!')
         model = L2CS(torchvision.models.resnet.Bottleneck, [3, 4, 6, 3], bins)
-        print(model)
         pre_url = 'https://download.pytorch.org/models/resnet50-19c8e357.pth'
 
-    return model
+    return model, pre_url
 
 if __name__ == '__main__':
     args = parse_args()
@@ -153,6 +136,7 @@ if __name__ == '__main__':
     data_set=args.dataset
     alpha = args.alpha
     output=args.output
+    bins=args.bins
     
     
     transformations = transforms.Compose([
@@ -171,9 +155,9 @@ if __name__ == '__main__':
         print(testlabelpathombined)
 
 
-        for fold in range(15):
-            model = getArch_weights(args.arch, 28)
-            # load_filtered_state_dict(model, model_zoo.load_url(pre_url))
+        for fold in range(1):
+            model, pre_url = getArch_weights(args.arch, 28)
+            load_filtered_state_dict(model, model_zoo.load_url(pre_url))
             # model = nn.DataParallel(model)
             model.to(gpu)
             print('Loading data.')
@@ -263,7 +247,7 @@ if __name__ == '__main__':
 
                     iter_gaze += 1
 
-                    if (i+1) % 100 == 0:
+                    if (i+1) % 10 == 0:
                         print('Epoch [%d/%d], Iter [%d/%d] Losses: '
                             'Gaze Yaw %.4f,Gaze Pitch %.4f' % (
                                 epoch+1,
@@ -278,4 +262,4 @@ if __name__ == '__main__':
                 # Save models at numbered epochs.
                 if epoch % 1 == 0 and epoch < num_epochs:
                     print('Taking snapshot...')
-                    torch.save(model.state_dict(), f'{output}/{summary_name}/fold{fold}/_epoch_{epoch+1}.pkl')
+                    torch.save(model.state_dict(), f'{output}/{summary_name}/_epoch_{epoch+1}.pkl')
