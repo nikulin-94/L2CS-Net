@@ -41,7 +41,7 @@ class L2CS(nn.Module):
                           kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(planes * block.expansion),
             )
-
+        #
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
@@ -63,7 +63,7 @@ class L2CS(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
 
-        
+
         # gaze
         pre_yaw_gaze =  self.fc_yaw_gaze(x)
         pre_pitch_gaze = self.fc_pitch_gaze(x)
@@ -71,3 +71,26 @@ class L2CS(nn.Module):
 
 
 
+class L2CS2(nn.Module):
+    def __init__(self, block, num_bins):
+        self.inplanes = 64
+        super(L2CS2, self).__init__()
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+
+        self.fc_yaw_gaze = nn.Linear(512 * 4, num_bins)
+        self.fc_pitch_gaze = nn.Linear(512 * 4, num_bins)
+
+       # Vestigial layer from previous experiments
+        self.fc_finetune = nn.Linear(512 * 4 + 3, 3)
+
+
+    def forward(self, x):
+
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+
+
+        # gaze
+        pre_yaw_gaze =  self.fc_yaw_gaze(x)
+        pre_pitch_gaze = self.fc_pitch_gaze(x)
+        return pre_yaw_gaze, pre_pitch_gaze
